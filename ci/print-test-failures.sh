@@ -49,7 +49,6 @@ do
 		case "$CI_TYPE" in
 		github-actions)
 			mkdir -p t/failed-test-artifacts
-			echo "FAILED_TEST_ARTIFACTS=t/failed-test-artifacts" >>$GITHUB_ENV
 			cp "t/test-results/${TEST_OUT}" t/failed-test-artifacts/
 			(
 				cd t &&
@@ -62,6 +61,11 @@ done
 
 if test -n "$failed"
 then
+	if test -n "$GITHUB_ENV"
+	then
+		echo "FAILED_TEST_ARTIFACTS=t/failed-test-artifacts" >>$GITHUB_ENV
+	fi
+
 	if test -n "$exit_code"
 	then
 		exit 1
