@@ -62,12 +62,13 @@ do
 		if test -n "$github_workflow_markup"
 		then
 			printf "\\e[33m\\e[1m=== Failed test: ${TEST_NAME} ===\\e[m\\n"
+			cat "t/test-results/$TEST_MARKUP"
 		else
 			echo "------------------------------------------------------------------------"
 			echo "$(tput setaf 1)${TEST_OUT}...$(tput sgr0)"
 			echo "------------------------------------------------------------------------"
+			cat "t/test-results/${TEST_OUT}"
 		fi
-		cat "t/test-results/${TEST_OUT}"
 
 		trash_dir="trash directory.$TEST_NAME"
 		case "$CI_TYPE" in
