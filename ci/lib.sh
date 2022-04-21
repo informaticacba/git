@@ -4,10 +4,40 @@ set -ex
 # Helper libraries
 . ${0%/*}/lib-ci-type.sh
 
+# Parse options
+mode_build=
+mode_test=
+while test $# != 0
+do
+	case "$1" in
+	--build)
+		mode_build=t
+		;;
+	--test)
+		mode_test=t
+		;;
+	-*)
+		echo "error: invalid option: $1" >&2
+		exit 1
+		;;
+	*)
+		echo "error: invalid argument: $1" >&2
+		exit 1
+		;;
+	esac
+	shift
+done
+
 # Starting assertions
 if test -z "$jobname"
 then
 	echo "error: must set a CI jobname in the environment" >&2
+	exit 1
+fi
+
+if test "$mode_test$mode_build" != "t"
+then
+	echo "error: need one mode, e.g. --build or --test" >&2
 	exit 1
 fi
 
@@ -17,10 +47,16 @@ setenv () {
 	do
 		case "$1" in
 		--build)
+			if test -z "$mode_build"
+			then
+				return 0
+			fi
 			;;
 		--test)
-			;;
-		--all)
+			if test -z "$mode_test"
+			then
+				return 0
+			fi
 			;;
 		-*)
 			echo "BUG: bad setenv() option '$1'" >&2
@@ -46,8 +82,12 @@ setenv () {
 # How many jobs to run in parallel?
 NPROC=10
 
+# For "--test" we carry the MAKEFLAGS over from earlier steps, except
+# in stand-alone jobs which will use $COMMON_MAKEFLAGS.
+COMMON_MAKEFLAGS=--jobs=$NPROC
+
 # Clear MAKEFLAGS that may come from the outside world.
-MAKEFLAGS=--jobs=$NPROC
+MAKEFLAGS=$COMMON_MAKEFLAGS
 
 case "$CI_TYPE" in
 github-actions)
@@ -101,6 +141,9 @@ windows-build)
 	setenv --build NO_PERL NoThanks
 	setenv --build ARTIFACTS_DIRECTORY artifacts
 	;;
+windows-test)
+	setenv --test MAKEFLAGS "$COMMON_MAKEFLAGS"
+	;;
 vs-build)
 	setenv --build NO_PERL NoThanks
 	setenv --build NO_GETTEXT NoThanks
@@ -117,6 +160,7 @@ vs-build)
 	;;
 vs-test)
 	setenv --test NO_SVN_TESTS YesPlease
+	setenv --test MAKEFLAGS "$COMMON_MAKEFLAGS"
 	;;
 linux-gcc)
 	setenv --test GIT_TEST_DEFAULT_INITIAL_BRANCH_NAME main
@@ -162,4 +206,4 @@ linux-leaks)
 	;;
 esac
 
-setenv --all MAKEFLAGS "$MAKEFLAGS CC=${CC:-cc}"
+setenv --build MAKEFLAGS "$MAKEFLAGS CC=${CC:-cc}"
