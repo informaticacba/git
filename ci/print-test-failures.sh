@@ -41,7 +41,7 @@ do
 		TEST_MARKUP="${TEST_NAME}.markup"
 
 		echo "------------------------------------------------------------------------"
-		echo "$(tput setaf 1)test-results/${TEST_OUT}...$(tput sgr0)"
+		echo "$(tput setaf 1)${TEST_OUT}...$(tput sgr0)"
 		echo "------------------------------------------------------------------------"
 		cat "t/test-results/${TEST_OUT}"
 
