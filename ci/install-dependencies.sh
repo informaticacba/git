@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #
 # Install dependencies required to build and test Git on Linux and macOS
 #
@@ -21,7 +21,8 @@ ubuntu-latest)
 
 	P4_PATH="$HOME/custom/p4"
 	GIT_LFS_PATH="$HOME/custom/git-lfs"
-	export PATH="$GIT_LFS_PATH:$P4_PATH:$PATH"
+	PATH="$GIT_LFS_PATH:$P4_PATH:$PATH"
+	export PATH
 	if test -n "$GITHUB_PATH"
 	then
 		echo "$PATH" >>"$GITHUB_PATH"
@@ -33,22 +34,28 @@ ubuntu-latest)
 	sudo apt-get -q update
 	sudo apt-get -q -y install language-pack-is libsvn-perl apache2 \
 		$UBUNTU_COMMON_PKGS $CC_PACKAGE
-	mkdir --parents "$P4_PATH"
-	pushd "$P4_PATH"
+	mkdir -p "$P4_PATH"
+	(
+		cd "$P4_PATH"
 		wget --quiet "$P4WHENCE/bin.linux26x86_64/p4d"
 		wget --quiet "$P4WHENCE/bin.linux26x86_64/p4"
 		chmod u+x p4d
 		chmod u+x p4
-	popd
-	mkdir --parents "$GIT_LFS_PATH"
-	pushd "$GIT_LFS_PATH"
+	)
+	mkdir -p "$GIT_LFS_PATH"
+	(
+		cd "$GIT_LFS_PATH"
 		wget --quiet "$LFSWHENCE/git-lfs-linux-amd64-$LINUX_GIT_LFS_VERSION.tar.gz"
 		tar --extract --gunzip --file "git-lfs-linux-amd64-$LINUX_GIT_LFS_VERSION.tar.gz"
 		cp git-lfs-$LINUX_GIT_LFS_VERSION/git-lfs .
-	popd
+	)
 	;;
 macos-latest)
-	export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
+	HOMEBREW_NO_AUTO_UPDATE=1
+	export HOMEBREW_NO_AUTO_UPDATE
+	HOMEBREW_NO_INSTALL_CLEANUP=1
+	export HOMEBREW_NO_INSTALL_CLEANUP
+
 	# Uncomment this if you want to run perf tests:
 	# brew install gnu-time
 	brew link --force gettext
@@ -62,7 +69,7 @@ macos-latest)
 
 	if test -n "$CC_PACKAGE"
 	then
-		BREW_PACKAGE=${CC_PACKAGE/-/@}
+		BREW_PACKAGE=$(echo $CC_PACKAGE | tr '-' '@')
 		brew install "$BREW_PACKAGE"
 		brew link "$BREW_PACKAGE"
 	fi
