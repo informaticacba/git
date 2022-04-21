@@ -16,15 +16,6 @@ then
 	exit
 fi
 
-case "$jobname" in
-osx-clang|osx-gcc)
-	# base64 in OSX doesn't wrap its output at 76 columns by
-	# default, but prints a single, very long line.
-	base64_opts="-b 76"
-	;;
-esac
-
-combined_trash_size=0
 for TEST_EXIT in test-results/*.exit
 do
 	if [ "$(cat "$TEST_EXIT")" != "0" ]
@@ -42,47 +33,17 @@ do
 		azure-pipelines)
 			mkdir -p failed-test-artifacts
 			mv "$trash_dir" failed-test-artifacts
-			continue
 			;;
 		github-actions)
 			mkdir -p failed-test-artifacts
 			echo "FAILED_TEST_ARTIFACTS=t/failed-test-artifacts" >>$GITHUB_ENV
 			cp "${TEST_EXIT%.exit}.out" failed-test-artifacts/
 			tar czf failed-test-artifacts/"$test_name".trash.tar.gz "$trash_dir"
-			continue
 			;;
 		*)
 			echo "Unhandled CI type: $CI_TYPE" >&2
 			exit 1
 			;;
 		esac
-		trash_tgz_b64="trash.$test_name.base64"
-		if [ -d "$trash_dir" ]
-		then
-			tar czp "$trash_dir" |base64 $base64_opts >"$trash_tgz_b64"
-
-			trash_size=$(wc -c <"$trash_tgz_b64")
-			if [ $trash_size -gt 1048576 ]
-			then
-				# larger than 1MB
-				echo "$(tput setaf 1)Didn't include the trash directory of '$test_name' in the trace log, it's too big$(tput sgr0)"
-				continue
-			fi
-
-			new_combined_trash_size=$(($combined_trash_size + $trash_size))
-			if [ $new_combined_trash_size -gt 1048576 ]
-			then
-				echo "$(tput setaf 1)Didn't include the trash directory of '$test_name' in the trace log, there is plenty of trash in there already.$(tput sgr0)"
-				continue
-			fi
-			combined_trash_size=$new_combined_trash_size
-
-			# DO NOT modify these two 'echo'-ed strings below
-			# without updating 'ci/util/extract-trash-dirs.sh'
-			# as well.
-			echo "$(tput setaf 1)Start of trash directory of '$test_name':$(tput sgr0)"
-			cat "$trash_tgz_b64"
-			echo "$(tput setaf 1)End of trash directory of '$test_name'$(tput sgr0)"
-		fi
 	fi
 done
