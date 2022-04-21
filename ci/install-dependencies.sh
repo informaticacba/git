@@ -9,6 +9,17 @@ UBUNTU_COMMON_PKGS="make libssl-dev libcurl4-openssl-dev libexpat-dev
  tcl tk gettext zlib1g-dev perl-modules liberror-perl libauthen-sasl-perl
  libemail-valid-perl libio-socket-ssl-perl libnet-smtp-ssl-perl"
 
+CC_PACKAGE=
+BREW_CC_PACKAGE=
+case "$jobname" in
+linux-gcc | linux-TEST-vars)
+	CC_PACKAGE=gcc-8
+	;;
+osx-gcc)
+	BREW_CC_PACKAGE=gcc@9
+	;;
+esac
+
 case "$runs_on_pool" in
 ubuntu-latest)
 	# The Linux build installs the defined dependency versions below.
@@ -67,11 +78,10 @@ macos-latest)
 	} ||
 	brew install homebrew/cask/perforce
 
-	if test -n "$CC_PACKAGE"
+	if test -n "$BREW_CC_PACKAGE"
 	then
-		BREW_PACKAGE=$(echo $CC_PACKAGE | tr '-' '@')
-		brew install "$BREW_PACKAGE"
-		brew link "$BREW_PACKAGE"
+		brew install "$BREW_CC_PACKAGE"
+		brew link "$BREW_CC_PACKAGE"
 	fi
 	;;
 esac
