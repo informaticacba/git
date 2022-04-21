@@ -8,12 +8,31 @@ set -e
 . ${0%/*}/lib-ci-type.sh
 . ${0%/*}/lib-tput.sh
 
-exit_code=
+case "$CI_TYPE" in
+github-actions)
+	exit_code=t
+	github_workflow_markup=t
+	;;
+*)
+	exit_code=
+	github_workflow_markup=
+	;;
+esac
+
 while test $# != 0
 do
 	case "$1" in
 	--exit-code)
 		exit_code=t
+		;;
+	--no-exit-code)
+		exit_code=
+		;;
+	--github-workflow-markup)
+		github_workflow_markup=t
+		;;
+	--no-github-workflow-markup)
+		github_workflow_markup=
 		;;
 	*)
 		echo "BUG: invalid $0 argument: $1" >&2
@@ -40,9 +59,14 @@ do
 		TEST_OUT="${TEST_NAME}.out"
 		TEST_MARKUP="${TEST_NAME}.markup"
 
-		echo "------------------------------------------------------------------------"
-		echo "$(tput setaf 1)${TEST_OUT}...$(tput sgr0)"
-		echo "------------------------------------------------------------------------"
+		if test -n "$github_workflow_markup"
+		then
+			printf "\\e[33m\\e[1m=== Failed test: ${TEST_NAME} ===\\e[m\\n"
+		else
+			echo "------------------------------------------------------------------------"
+			echo "$(tput setaf 1)${TEST_OUT}...$(tput sgr0)"
+			echo "------------------------------------------------------------------------"
+		fi
 		cat "t/test-results/${TEST_OUT}"
 
 		trash_dir="trash directory.$TEST_NAME"
