@@ -1,5 +1,5 @@
 #!/bin/sh
-set -ex
+set -e
 
 # Helper libraries
 . ${0%/*}/lib-ci-type.sh
@@ -7,14 +7,21 @@ set -ex
 # Parse options
 mode_build=
 mode_test=
+mode_debug=
 while test $# != 0
 do
 	case "$1" in
 	--build)
+		echo "MODE: $1" >&2
 		mode_build=t
 		;;
 	--test)
+		echo "MODE: $1" >&2
 		mode_test=t
+		;;
+	--debug)
+		echo "DEBUG: $1" >&2
+		mode_debug=t
 		;;
 	-*)
 		echo "error: invalid option: $1" >&2
@@ -41,21 +48,32 @@ then
 	exit 1
 fi
 
+# Show our configuration
+echo "CONFIG: CI_TYPE=$CI_TYPE" >&2
+echo "CONFIG: jobname=$jobname" >&2
+echo "CONFIG: runs_on_pool=$runs_on_pool" >&2
+if test -n "$GITHUB_ENV"
+then
+	echo "CONFIG: GITHUB_ENV=$GITHUB_ENV" >&2
+fi
+echo >&2
+
 # Helper functions
 setenv () {
+	skip=
 	while test $# != 0
 	do
 		case "$1" in
 		--build)
 			if test -z "$mode_build"
 			then
-				return 0
+				skip=t
 			fi
 			;;
 		--test)
 			if test -z "$mode_test"
 			then
-				return 0
+				skip=t
 			fi
 			;;
 		-*)
@@ -73,10 +91,21 @@ setenv () {
 	val=$2
 	shift 2
 
+	if test -n "$skip"
+	then
+		if test -n "$mode_debug"
+		then
+			echo "SKIP: '$key=$val'" >&2
+		fi
+		return 0
+	fi
+
 	if test -n "$GITHUB_ENV"
 	then
 		echo "$key=$val" >>"$GITHUB_ENV"
 	fi
+
+	echo "SET: '$key=$val'" >&2
 }
 
 # Clear variables that may come from the outside world.
