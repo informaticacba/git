@@ -36,10 +36,6 @@ do
 			cp "${TEST_EXIT%.exit}.out" failed-test-artifacts/
 			tar czf failed-test-artifacts/"$test_name".trash.tar.gz "$trash_dir"
 			;;
-		*)
-			echo "Unhandled CI type: $CI_TYPE" >&2
-			exit 1
-			;;
 		esac
 	fi
 done

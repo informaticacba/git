@@ -1,16 +1,55 @@
 #!/bin/sh
 set -e
 
+# Usage
+CI_TYPE_HELP_COMMANDS='
+	# run "make all test" like the "linux-leaks" job
+	(eval $(jobname=linux-leaks ci/lib.sh --all) && make test)
+
+	# run "make all test" like the "linux-musl" job
+	(eval $(jobname=linux-musl ci/lib.sh --all) && make test)
+
+	# run "make test" like the "linux-TEST-vars" job (uses various GIT_TEST_* modes)
+	make && (eval $(jobname=linux-TEST-vars ci/lib.sh --test) && make test)
+
+	# run "make test" like the "linux-sha256" job
+	make && (eval $(jobname=linux-sha256 ci/lib.sh --test) && make test)
+'
+
+CI_TYPE_HELP="
+Running $0 outside of CI? You can use ci/lib.sh to set up your
+environment like a given CI job. E.g.:
+$CI_TYPE_HELP_COMMANDS
+Note that some of these (e.g. the linux-musl one) may not work as
+expected due to the CI job configuring a platform that may not match
+yours."
+
+usage() {
+	echo "usage: jobname=<job-name> [runs_on_pool=<pool-name>] $0 (--build | --test)" >&2
+	if test -z "$CI_TYPE"
+	then
+		echo "$CI_TYPE_HELP" >&2
+	fi
+	exit 1
+}
+
 # Helper libraries
 . ${0%/*}/lib-ci-type.sh
 
 # Parse options
+mode_all=
 mode_build=
 mode_test=
 mode_debug=
 while test $# != 0
 do
 	case "$1" in
+	--all)
+		echo "MODE: $1" >&2
+		mode_all=t
+		mode_build=t
+		mode_test=t
+		;;
 	--build)
 		echo "MODE: $1" >&2
 		mode_build=t
@@ -25,11 +64,11 @@ do
 		;;
 	-*)
 		echo "error: invalid option: $1" >&2
-		exit 1
+		usage
 		;;
 	*)
 		echo "error: invalid argument: $1" >&2
-		exit 1
+		usage
 		;;
 	esac
 	shift
@@ -39,13 +78,13 @@ done
 if test -z "$jobname"
 then
 	echo "error: must set a CI jobname in the environment" >&2
-	exit 1
+	usage
 fi
 
-if test "$mode_test$mode_build" != "t"
+if test "$mode_test$mode_build" != "t" && test -z "$mode_all"
 then
 	echo "error: need one mode, e.g. --build or --test" >&2
-	exit 1
+	usage
 fi
 
 # Show our configuration
@@ -65,13 +104,13 @@ setenv () {
 	do
 		case "$1" in
 		--build)
-			if test -z "$mode_build"
+			if test -z "$mode_build$mode_all"
 			then
 				skip=t
 			fi
 			;;
 		--test)
-			if test -z "$mode_test"
+			if test -z "$mode_test$mode_all"
 			then
 				skip=t
 			fi
@@ -103,6 +142,10 @@ setenv () {
 	if test -n "$GITHUB_ENV"
 	then
 		echo "$key=$val" >>"$GITHUB_ENV"
+	elif test -z "$CI_TYPE"
+	then
+		echo "$key=\"$val\""
+		echo "export $key"
 	fi
 
 	echo "SET: '$key=$val'" >&2
@@ -113,10 +156,25 @@ CC=
 
 # How many jobs to run in parallel?
 NPROC=10
+case "$CI_TYPE" in
+'')
+	. ${0%/*}/lib-online_cpus.sh
+	NPROC=$(online_cpus)
 
-# For "--test" we carry the MAKEFLAGS over from earlier steps, except
-# in stand-alone jobs which will use $COMMON_MAKEFLAGS.
-COMMON_MAKEFLAGS=--jobs=$NPROC
+	if test -n "$MAKEFLAGS"
+	then
+		COMMON_MAKEFLAGS="$MAKEFLAGS"
+	else
+		COMMON_MAKEFLAGS=--jobs=$NPROC
+	fi
+	;;
+*)
+	# For "--test" we carry the MAKEFLAGS over from earlier steps, except
+	# in stand-alone jobs which will use $COMMON_MAKEFLAGS.
+	COMMON_MAKEFLAGS=--jobs=$NPROC
+	;;
+esac
+
 
 # Clear MAKEFLAGS that may come from the outside world.
 MAKEFLAGS=$COMMON_MAKEFLAGS
@@ -135,6 +193,8 @@ github-actions)
 	test Windows != "$RUNNER_OS" ||
 	GIT_TEST_OPTS="--no-chain-lint --no-bin-wrappers $GIT_TEST_OPTS"
 	setenv --test GIT_TEST_OPTS "$GIT_TEST_OPTS"
+	;;
+'')
 	;;
 *)
 	echo "Unhandled CI type: $CI_TYPE" >&2
