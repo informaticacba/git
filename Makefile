@@ -3312,6 +3312,7 @@ dist-doc: git$X
 
 distclean: clean
 	$(RM) configure
+	$(RM) po/git.pot
 	$(RM) config.log config.status config.cache
 	$(RM) config.mak.autogen config.mak.append
 	$(RM) -r autom4te.cache
