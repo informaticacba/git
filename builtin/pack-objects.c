@@ -1357,6 +1357,9 @@ static int want_found_object(const struct object_id *oid, int exclude,
 	if (incremental)
 		return 0;
 
+	if (!is_pack_valid(p))
+		return -1;
+
 	/*
 	 * When asked to do --local (do not include an object that appears in a
 	 * pack we borrow from elsewhere) or --honor-pack-keep (do not include
@@ -1424,14 +1427,15 @@ static int want_object_in_pack_one(struct packed_git *p,
 				   off_t *found_offset)
 {
 	off_t offset;
+	int use_found = p == *found_pack;
 
-	if (p == *found_pack)
+	if (use_found)
 		offset = *found_offset;
 	else
 		offset = find_pack_entry_one(oid->hash, p);
 
 	if (offset) {
-		if (!*found_pack) {
+		if (!use_found) {
 			if (!is_pack_valid(p))
 				return -1;
 			*found_offset = offset;
