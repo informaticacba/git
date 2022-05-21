@@ -27,6 +27,7 @@
 #include "iterator.h"
 #include "sigchain.h"
 #include "branch.h"
+#include "connect.h"
 #include "remote.h"
 #include "run-command.h"
 #include "connected.h"
@@ -34,6 +35,7 @@
 #include "list-objects-filter-options.h"
 #include "hook.h"
 #include "bundle.h"
+#include "bundle-uri.h"
 
 /*
  * Overall FIXMEs:
@@ -77,6 +79,7 @@ static int option_filter_submodules = -1;    /* unspecified */
 static int config_filter_submodules = -1;    /* unspecified */
 static struct string_list server_options = STRING_LIST_INIT_NODUP;
 static int option_remote_submodules;
+static const char *bundle_uri;
 
 static int recurse_submodules_cb(const struct option *opt,
 				 const char *arg, int unset)
@@ -160,6 +163,8 @@ static struct option builtin_clone_options[] = {
 		    N_("any cloned submodules will use their remote-tracking branch")),
 	OPT_BOOL(0, "sparse", &option_sparse_checkout,
 		    N_("initialize sparse-checkout file to include only files at root")),
+	OPT_STRING(0, "bundle-uri", &bundle_uri,
+		   N_("uri"), N_("a URI for downloading bundles before fetching from origin remote")),
 	OPT_END()
 };
 
@@ -922,6 +927,11 @@ int cmd_clone(int argc, const char **argv, const char *prefix)
 		option_no_checkout = 1;
 	}
 
+	if (bundle_uri) {
+		if (deepen)
+			die(_("--bundle-uri is incompatible with --depth, --shallow-since, and --shallow-exclude"));
+	}
+
 	repo_name = argv[0];
 
 	path = get_repo_path(repo_name, &is_bundle);
@@ -1234,8 +1244,43 @@ int cmd_clone(int argc, const char **argv, const char *prefix)
 
 	refs = transport_get_remote_refs(transport, &transport_ls_refs_options);
 
+	/*
+	 * NOTE: The bundle URI download takes place after transport_get_remote_refs()
+	 * because a later change will introduce a check for recommended features,
+	 * which might include a recommended bundle URI.
+	 */
+
+	/*
+	 * Before fetching from the remote, download and install bundle
+	 * data from the --bundle-uri option.
+	 */
+	if (bundle_uri) {
+		/* At this point, we need the_repository to match the cloned repo. */
+		repo_init(the_repository, git_dir, work_tree);
+		if (fetch_bundle_uri(the_repository, bundle_uri))
+			warning(_("failed to fetch objects from bundle URI '%s'"),
+				bundle_uri);
+	}
+
 	if (refs)
 		mapped_refs = wanted_peer_refs(refs, &remote->fetch);
+
+	if (!bundle_uri) {
+		/*
+		* Populate transport->got_remote_bundle_uri and
+		* transport->bundle_uri. We might get nothing.
+		*/
+		transport_get_remote_bundle_uri(transport, 1);
+
+		if (transport->bundles) {
+			/* At this point, we need the_repository to match the cloned repo. */
+			repo_init(the_repository, git_dir, work_tree);
+			if (fetch_bundle_list(the_repository,
+					      remote->url[0],
+					      transport->bundles))
+				warning(_("failed to fetch advertised bundles"));
+		}
+	}
 
 	if (mapped_refs) {
 		int hash_algo = hash_algo_by_ptr(transport_get_hash_algo(transport));

@@ -91,6 +91,7 @@
 /git-log
 /git-ls-files
 /git-ls-remote
+/git-ls-remote-bundle-uri
 /git-ls-tree
 /git-mailinfo
 /git-mailsplit

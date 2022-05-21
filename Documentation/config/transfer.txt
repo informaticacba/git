@@ -77,3 +77,9 @@ transfer.unpackLimit::
 transfer.advertiseSID::
 	Boolean. When true, client and server processes will advertise their
 	unique session IDs to their remote counterpart. Defaults to false.
+
+transfer.bundleURI::
+	When set to `false` ignores any server advertisement of
+	`bundle-uri` and proceed with a "normal" clone/fetch even if
+	using bundles to bootstap is possible. Defaults to `true`,
+	i.e. bundle-uri is tried whenever a server offers it.
