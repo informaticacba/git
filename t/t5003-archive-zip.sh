@@ -214,14 +214,14 @@ test_expect_success UNZIP 'git archive --format=zip --add-virtual-file' '
 		QUOTED=quoted
 	fi &&
 	git archive --format=zip >with_file_with_content.zip \
-		--add-virtual-file=\"$QUOTED\": \
+		--add-virtual-file=\""$QUOTED"\": \
 		--add-virtual-file=hello:world $EMPTY_TREE &&
 	test_when_finished "rm -rf tmp-unpack" &&
 	mkdir tmp-unpack && (
 		cd tmp-unpack &&
 		"$GIT_UNZIP" ../with_file_with_content.zip &&
 		test_path_is_file hello &&
-		test_path_is_file $QUOTED &&
+		test_path_is_file "$QUOTED" &&
 		test world = $(cat hello)
 	)
 '
