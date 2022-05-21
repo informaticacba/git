@@ -53,9 +53,8 @@ static int pick_next_hook(struct child_process *cp,
 	if (!hook_path)
 		return 0;
 
-	cp->no_stdin = 1;
 	strvec_pushv(&cp->env, hook_cb->options->env.v);
-	cp->stdout_to_stderr = 1;
+	cp->stdout_to_stderr = 1; /* because of .ungroup = 1 */
 	cp->trace2_hook_name = hook_cb->hook_name;
 	cp->dir = hook_cb->options->dir;
 
@@ -121,11 +120,26 @@ int run_hooks_opt(const char *hook_name, struct run_hooks_opt *options)
 		.options = options,
 	};
 	const char *const hook_path = find_hook(hook_name);
-	int jobs = 1;
+	const int jobs = 1;
 	int ret = 0;
+	struct run_process_parallel_opts run_opts = {
+		.tr2_category = "hook",
+		.tr2_label = hook_name,
+
+		.jobs = jobs,
+		.ungroup = jobs == 1,
+
+		.get_next_task = pick_next_hook,
+		.start_failure = notify_start_failure,
+		.task_finished = notify_hook_finished,
+		.data = &cb_data,
+	};
 
 	if (!options)
 		BUG("a struct run_hooks_opt must be provided to run_hooks");
+
+	if (jobs != 1 || !run_opts.ungroup)
+		BUG("TODO: think about & document order & interleaving of parallel hook output");
 
 	if (options->invoked_hook)
 		*options->invoked_hook = 0;
@@ -144,13 +158,7 @@ int run_hooks_opt(const char *hook_name, struct run_hooks_opt *options)
 		cb_data.hook_path = abs_path.buf;
 	}
 
-	run_processes_parallel_tr2(jobs,
-				   pick_next_hook,
-				   notify_start_failure,
-				   notify_hook_finished,
-				   &cb_data,
-				   "hook",
-				   hook_name);
+	run_processes_parallel(&run_opts);
 	ret = cb_data.rc;
 cleanup:
 	strbuf_release(&abs_path);
