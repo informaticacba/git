@@ -214,7 +214,7 @@ jobs:
       shell: bash
     - name: test
       shell: bash
-      run: . /etc/profile && make -C t -e || ci/print-test-failures-github.sh
+      run: . /etc/profile && make -C t -e || ci/print-test-failures.sh
     - name: Upload failed tests' directories
       if: failure() && env.FAILED_TEST_ARTIFACTS != ''
       uses: actions/upload-artifact@v2
@@ -257,7 +257,7 @@ jobs:
     - run: ci/lib.sh --build
     - run: make
     - run: ci/lib.sh --test
-    - run: make test || ci/print-test-failures-github.sh
+    - run: make test || ci/print-test-failures.sh
       if: success()
     - name: Upload failed tests' directories
       if: failure() && env.FAILED_TEST_ARTIFACTS != ''
@@ -292,7 +292,7 @@ jobs:
     - run: make
     - run: ci/lib.sh --test
       if: success() && matrix.vector.skip-tests != 'yes'
-    - run: make test || ci/print-test-failures-github.sh
+    - run: make test || ci/print-test-failures.sh
       if: success() && matrix.vector.skip-tests != 'yes'
     - name: Upload failed tests' directories
       if: failure() && env.FAILED_TEST_ARTIFACTS != ''
